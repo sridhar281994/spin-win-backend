@@ -9,10 +9,6 @@ tx_router = APIRouter()
 ADMIN_UPI_ID = os.getenv("ADMIN_UPI_ID")
 @tx_router.post("/recharge")
 def create_recharge(user_id: int, amount: int, db: Session = Depends(get_db)):
-    """
-    Step 1: Create a recharge intent.
-    Step 2: Return a UPI intent URL to open in Android app.
-    """
     if amount < 1:
         raise HTTPException(400, "Minimum ₹1 required")
     txn = Transaction(
@@ -35,15 +31,11 @@ def create_recharge(user_id: int, amount: int, db: Session = Depends(get_db)):
     }
 @tx_router.post("/confirm-recharge")
 def confirm_recharge(user_id: int, transaction_id: int, db: Session = Depends(get_db)):
-    """
-    This would be manually or semi-automatically called after verifying UPI txn
-    """
     txn = db.query(Transaction).filter_by(id=transaction_id, user_id=user_id, type="recharge").first()
     if not txn:
         raise HTTPException(404, "Transaction not found")
     if txn.status == "success":
         return {"message": "Already confirmed"}
-    # Mark as success and update wallet
     txn.status = "success"
     user = db.query(User).filter_by(id=user_id).first()
     user.wallet_cents += txn.amount_cents
@@ -51,16 +43,11 @@ def confirm_recharge(user_id: int, transaction_id: int, db: Session = Depends(ge
     return {"message": "Recharge confirmed", "wallet": user.wallet_cents // 100}
 @tx_router.post("/withdraw")
 def request_withdraw(user_id: int, amount: int, db: Session = Depends(get_db)):
-    """
-    Allows user to request withdraw from winnings.
-    Admin will process payout manually or via payout API.
-    """
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
         raise HTTPException(404, "User not found")
     if user.wallet_cents < amount * 100:
         raise HTTPException(400, "Insufficient balance")
-    # Deduct immediately
     user.wallet_cents -= amount * 100
     txn = Transaction(
         user_id=user_id,
@@ -74,7 +61,7 @@ def request_withdraw(user_id: int, amount: int, db: Session = Depends(get_db)):
         "message": f"Withdrawal of ₹{amount} requested. It will be processed soon.",
         "wallet": user.wallet_cents // 100
     }
-  @tx_router.get("/wallet")
+@tx_router.get("/wallet")
 def get_wallet_balance(user_id: int, db: Session = Depends(get_db)):
     user = db.query(User).filter_by(id=user_id).first()
     if not user:
