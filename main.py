@@ -3,6 +3,8 @@ from database import engine, Base
 from auth_routes import auth_router
 from transaction_routes import tx_router
 from game_routes import game_router
+from transaction_routes import tx_router
+app.include_router(tx_router, prefix="/transaction")
 Base.metadata.create_all(bind=engine)
 app = FastAPI()
 app.include_router(auth_router, prefix="/auth")
